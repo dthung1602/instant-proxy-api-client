@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -21,16 +22,20 @@ func main() {
 	fmt.Println("hello world")
 }
 
-type ProxyAddr struct {
+// ------------------------------------
+//   Proxy
+// ------------------------------------
+
+type Proxy struct {
 	IP   net.IP
 	Port uint16
 }
 
-func (proxyAddr *ProxyAddr) String() string {
+func (proxyAddr *Proxy) String() string {
 	return fmt.Sprintf("%s:%d", proxyAddr.IP.String(), proxyAddr.Port)
 }
 
-func MakeProxyAddr(str string) (*ProxyAddr, error) {
+func MakeProxy(str string) (*Proxy, error) {
 	str = strings.Trim(str, " \n\r\t")
 	parts := strings.Split(str, ":")
 
@@ -49,16 +54,39 @@ func MakeProxyAddr(str string) (*ProxyAddr, error) {
 		return nil, fmt.Errorf("invalid proxy string '%s'", str)
 	}
 
-	return &ProxyAddr{ip, uint16(port)}, nil
+	return &Proxy{ip, uint16(port)}, nil
+}
+
+func MakeProxies(strings []string) ([]*Proxy, error) {
+	proxies := make([]*Proxy, len(strings))
+	for i, line := range strings {
+		proxy, parseErr := MakeProxy(line)
+		if parseErr != nil {
+			return nil, parseErr
+		}
+		proxies[i] = proxy
+	}
+
+	return proxies, nil
+}
+
+// ------------------------------------
+//   API client
+// ------------------------------------
+
+type simpleHTTPClient interface {
+	Get(url string) (resp *http.Response, err error)
+	PostForm(url string, data url.Values) (resp *http.Response, err error)
 }
 
 type Client struct {
-	UserId     string
-	Password   string
-	httpClient *http.Client
+	UserId           string
+	Password         string
+	httpClient       simpleHTTPClient
+	initSuccessfully bool
 }
 
-func NewClient() (*Client, error) {
+func NewClient() *Client {
 	client := &Client{}
 
 	jar, _ := cookiejar.New(nil)
@@ -66,6 +94,18 @@ func NewClient() (*Client, error) {
 	client.httpClient = &http.Client{
 		Jar:           jar,
 		CheckRedirect: dontRedirect,
+	}
+
+	return client
+}
+
+func dontRedirect(_ *http.Request, _ []*http.Request) error {
+	return http.ErrUseLastResponse
+}
+
+func (client *Client) initHTTPClient() error {
+	if client.initSuccessfully {
+		return nil
 	}
 
 	payload := url.Values{}
@@ -76,38 +116,39 @@ func NewClient() (*Client, error) {
 	res, networkErr := client.httpClient.PostForm(loginEndpoint, payload)
 
 	if networkErr != nil {
-		return nil, networkErr
+		return networkErr
 	}
 
 	bodyBytes, readErr := io.ReadAll(res.Body)
 
 	if readErr != nil {
-		return nil, readErr
+		return readErr
 	}
 
 	bodyStr := string(bodyBytes)
 
 	if strings.Contains(bodyStr, "Invalid username or password") {
-		return nil, errors.New("invalid username or password")
+		return errors.New("invalid username or password")
 	}
 
 	if res.StatusCode != 302 {
-		return nil, fmt.Errorf("expected 302 HTTP status for success login, got %d", res.StatusCode)
+		return fmt.Errorf("expected 302 HTTP status for success login, got %d", res.StatusCode)
 	}
 
 	redirectLocation := res.Header.Get("Location")
 	if redirectLocation != mainPhp {
-		return nil, fmt.Errorf("expect redirect location to be '%s', got '%s'", mainPhp, redirectLocation)
+		return fmt.Errorf("expect redirect location to be '%s', got '%s'", mainPhp, redirectLocation)
 	}
 
-	return client, nil
+	client.initSuccessfully = true
+	return nil
 }
 
-func dontRedirect(req *http.Request, via []*http.Request) error {
-	return http.ErrUseLastResponse
-}
+// ------------------------------------
+//   API client get data
+// ------------------------------------
 
-func (client Client) getMainPhpText() (string, error) {
+func (client *Client) getMainPhpText() (string, error) {
 	res, networkErr := client.httpClient.Get(mainPhp)
 
 	if networkErr != nil {
@@ -123,90 +164,70 @@ func (client Client) getMainPhpText() (string, error) {
 	return string(bodyBytes), nil
 }
 
-func getProxiesByElementId(html string, id string) ([]ProxyAddr, error) {
+func getTextAreaInnerText(html string, id string) ([]string, error) {
 	// todo consider an html parser?
 
-	lines := strings.Split(html, "\n")
-	matchText := "id=\"" + id + "\""
-	for i, line := range lines {
-		if !strings.Contains(line, matchText) {
-			continue
-		}
+	regex, regexErr := regexp.Compile(fmt.Sprintf("(?s)<textarea id=\"%s\".*?>(.*?)</textarea>", id))
 
-		firstLineComponents := strings.Split(line, ">")
-		if len(firstLineComponents) != 2 {
-			return nil, errors.New("cannot extract proxies from HTML")
-		}
-
-		proxyStrings := []string{firstLineComponents[1]}
-
-		// TODO optimize this
-		for _, ln := range lines[i+1:] {
-			if strings.Contains(ln, "<") {
-				lastLineComponents := strings.Split(ln, "<")
-				if len(lastLineComponents) != 2 {
-					return nil, errors.New("cannot extract proxies from HTML")
-				}
-				proxyStrings = append(proxyStrings, lastLineComponents[0])
-			} else {
-				proxyStrings = append(proxyStrings, ln)
-			}
-		}
-
-		proxies := make([]ProxyAddr, len(proxyStrings))
-
-		for i, str := range proxyStrings {
-			proxy, proxyErr := MakeProxyAddr(str)
-			if proxyErr != nil {
-				return nil, proxyErr
-			}
-			proxies[i] = *proxy
-		}
-
-		return proxies, nil
+	if regexErr != nil {
+		return nil, regexErr
 	}
 
-	return nil, fmt.Errorf("cannot find element with id '%s'", id)
+	match := regex.FindStringSubmatch(html)
+	if len(match) != 2 {
+		return nil, fmt.Errorf("cannot find element '%s'", id)
+	}
+
+	replacer := strings.NewReplacer("\t", "", "\r", "", "\n\n", "\n")
+	textAreaText := strings.Trim(replacer.Replace(match[1]), "\n")
+	lines := strings.Split(textAreaText, "\n")
+
+	return lines, nil
 }
 
-func (client Client) GetProxies() ([]ProxyAddr, error) {
+func (client *Client) GetProxies() ([]*Proxy, error) {
+	initError := client.initHTTPClient()
+	if initError != nil {
+		return nil, initError
+	}
+
 	html, reqErr := client.getMainPhpText()
 
 	if reqErr != nil {
 		return nil, reqErr
 	}
 
-	proxies, parseErr := getProxiesByElementId(html, "proxies-textarea")
+	lines, err := getTextAreaInnerText(html, "proxies-textarea")
 
-	if parseErr != nil {
-		return nil, parseErr
+	if err != nil {
+		return nil, err
 	}
 
-	return proxies, nil
+	return MakeProxies(lines)
 }
 
 /**
-func (client Client) TestProxies() []bool {
+func (client *Client) TestProxies() []bool {
 
 }
 
-func (client Client) GetAuthorizedIPs() []net.IP {
+func (client *Client) GetAuthorizedIPs() []net.IP {
 
 }
 
-func (client Client) AddAuthorizedIP(ip net.IP) {
+func (client *Client) AddAuthorizedIP(ip net.IP) {
 
 }
 
-func (client Client) RemoveAuthorizedIP(ip net.IP) {
+func (client *Client) RemoveAuthorizedIP(ip net.IP) {
 
 }
 
-func (client Client) SetAuthorizedIPs(ips []net.IP) {
+func (client *Client) SetAuthorizedIPs(ips []net.IP) {
 
 }
 
-func (client Client) GetLocalEnvPublicIP() net.IP {
+func (client *Client) GetLocalEnvPublicIP() net.IP {
 
 }
 */
