@@ -66,7 +66,6 @@ func MakeProxies(strings []string) ([]*Proxy, error) {
 		}
 		proxies[i] = proxy
 	}
-
 	return proxies, nil
 }
 
@@ -88,14 +87,11 @@ type Client struct {
 
 func NewClient() *Client {
 	client := &Client{}
-
 	jar, _ := cookiejar.New(nil)
-
 	client.httpClient = &http.Client{
 		Jar:           jar,
 		CheckRedirect: dontRedirect,
 	}
-
 	return client
 }
 
@@ -114,13 +110,11 @@ func (client *Client) initHTTPClient() error {
 	payload.Add("button", "Sign+In")
 
 	res, networkErr := client.httpClient.PostForm(loginEndpoint, payload)
-
 	if networkErr != nil {
 		return networkErr
 	}
 
 	bodyBytes, readErr := io.ReadAll(res.Body)
-
 	if readErr != nil {
 		return readErr
 	}
@@ -150,13 +144,11 @@ func (client *Client) initHTTPClient() error {
 
 func (client *Client) getMainPhpText() (string, error) {
 	res, networkErr := client.httpClient.Get(mainPhp)
-
 	if networkErr != nil {
 		return "", networkErr
 	}
 
 	bodyBytes, readErr := io.ReadAll(res.Body)
-
 	if readErr != nil {
 		return "", readErr
 	}
@@ -168,7 +160,6 @@ func getTextAreaInnerText(html string, id string) ([]string, error) {
 	// todo consider an html parser?
 
 	regex, regexErr := regexp.Compile(fmt.Sprintf("(?s)<textarea id=\"%s\".*?>(.*?)</textarea>", id))
-
 	if regexErr != nil {
 		return nil, regexErr
 	}
@@ -192,13 +183,11 @@ func (client *Client) GetProxies() ([]*Proxy, error) {
 	}
 
 	html, reqErr := client.getMainPhpText()
-
 	if reqErr != nil {
 		return nil, reqErr
 	}
 
 	lines, err := getTextAreaInnerText(html, "proxies-textarea")
-
 	if err != nil {
 		return nil, err
 	}
