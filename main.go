@@ -23,11 +23,19 @@ func main() {
 	fmt.Println("Start manin")
 	client := NewClient("123456", "secret")
 	proxies, err := client.GetProxies()
+	ips, ipErr := client.GetAuthorizedIPs()
 	fmt.Println()
-	fmt.Printf("ERROR: %v", err)
+	fmt.Printf("PROXIES ERROR: %v", err)
 	fmt.Println()
 	fmt.Println()
 	fmt.Printf("PROXIES: %v", proxies)
+	fmt.Println()
+	fmt.Println()
+	fmt.Printf("IPS: %v", ips)
+	fmt.Println()
+	fmt.Println()
+	fmt.Printf("IP ERROR: %v", ipErr)
+	fmt.Println()
 	fmt.Println()
 	fmt.Println("End manin")
 }
@@ -208,12 +216,34 @@ func (client *Client) GetProxies() ([]*Proxy, error) {
 	return MakeProxies(lines)
 }
 
-/**
-func (client *Client) TestProxies() []bool {
+func (client *Client) GetAuthorizedIPs() ([]net.IP, error) {
+	initError := client.initHTTPClient()
+	if initError != nil {
+		return nil, initError
+	}
 
+	html, reqErr := client.getMainPhpText()
+	if reqErr != nil {
+		return nil, reqErr
+	}
+
+	lines, err := getTextAreaInnerText(html, "authips-textarea")
+	if err != nil {
+		return nil, err
+	}
+
+	ips := make([]net.IP, len(lines))
+	for i, line := range lines {
+		ips[i] = net.ParseIP(line)
+		if ips[i] == nil {
+			return nil, fmt.Errorf("can not parse IP %s", line)
+		}
+	}
+	return ips, nil
 }
 
-func (client *Client) GetAuthorizedIPs() []net.IP {
+/**
+func (client *Client) TestProxies() []bool {
 
 }
 
