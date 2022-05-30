@@ -18,10 +18,14 @@ const loginPhp = "login_do.php"
 const loginEndpoint = baseEndpoint + loginPhp
 const mainPhp = "main.php"
 const mainEndpoint = baseEndpoint + mainPhp
+const checkIPEndpoint = "https://checkip.instantproxies.com/"
 
 func main() {
 	fmt.Println("Start manin")
 	client := NewClient("123456", "secret")
+	myIP, myIPErr := client.GetLocalEnvPublicIP()
+	fmt.Printf("MY IP IS %v\n", myIP)
+	fmt.Printf("ERROR MY IP %v\n", myIPErr)
 	proxies, err := client.GetProxies()
 	ips, ipErr := client.GetAuthorizedIPs()
 	fmt.Println()
@@ -242,11 +246,11 @@ func (client *Client) GetAuthorizedIPs() ([]net.IP, error) {
 	return ips, nil
 }
 
+// ------------------------------------
+//   API client set data
+// ------------------------------------
+
 /**
-func (client *Client) TestProxies() []bool {
-
-}
-
 func (client *Client) AddAuthorizedIP(ip net.IP) {
 
 }
@@ -258,8 +262,33 @@ func (client *Client) RemoveAuthorizedIP(ip net.IP) {
 func (client *Client) SetAuthorizedIPs(ips []net.IP) {
 
 }
+*/
 
-func (client *Client) GetLocalEnvPublicIP() net.IP {
+// ------------------------------------
+//   API util
+// ------------------------------------
+
+func (client *Client) GetLocalEnvPublicIP() (net.IP, error) {
+	response, networkErr := client.httpClient.Get(checkIPEndpoint)
+	if networkErr != nil {
+		return nil, networkErr
+	}
+
+	bodyRaw, readErr := io.ReadAll(response.Body)
+	if readErr != nil {
+		return nil, readErr
+	}
+
+	ipString := strings.Trim(string(bodyRaw)[3:], " \n\r\t")
+	ip := net.ParseIP(ipString)
+	if ip == nil {
+		return nil, fmt.Errorf("can not parse IP '%s'", ipString)
+	}
+	return ip, nil
+}
+
+/**
+func (client *Client) TestProxies() []bool {
 
 }
 */
