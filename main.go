@@ -9,6 +9,7 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -266,9 +267,36 @@ func (client *Client) AddAuthorizedIPs(ips []net.IP) error {
 	}
 	// TODO make ip unique?
 	authorizedIPs = append(authorizedIPs, ips...)
-	var authorizedIPStrs []string
-	for _, ip := range authorizedIPs {
-		authorizedIPStrs = append(authorizedIPStrs, ip.String())
+	return client.SetAuthorizedIPs(authorizedIPs)
+}
+
+func (client *Client) RemoveAuthorizedIP(ip net.IP) error {
+	initError := client.initHTTPClient()
+	if initError != nil {
+		return initError
+	}
+
+	authorizedIPs, getIPErr := client.GetAuthorizedIPs()
+	if getIPErr != nil {
+		return getIPErr
+	}
+	// TODO make ip unique?
+	idx := sort.Search(len(authorizedIPs), func(i int) bool {
+		return authorizedIPs[i].Equal(ip)
+	})
+	authorizedIPs = append(authorizedIPs[:idx], authorizedIPs[idx+1:]...)
+	return client.SetAuthorizedIPs(authorizedIPs)
+}
+
+func (client *Client) SetAuthorizedIPs(ips []net.IP) error {
+	initError := client.initHTTPClient()
+	if initError != nil {
+		return initError
+	}
+
+	authorizedIPStrs := make([]string, len(ips))
+	for i, ip := range ips {
+		authorizedIPStrs[i] = ip.String()
 	}
 
 	payload := url.Values{}
@@ -287,16 +315,6 @@ func (client *Client) AddAuthorizedIPs(ips []net.IP) error {
 
 	return nil
 }
-
-/**
-func (client *Client) RemoveAuthorizedIP(ip net.IP) {
-
-}
-
-func (client *Client) SetAuthorizedIPs(ips []net.IP) {
-
-}
-*/
 
 // ------------------------------------
 //   API util
