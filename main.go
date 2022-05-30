@@ -17,9 +17,19 @@ const baseEndpoint = "https://admin.instantproxies.com/"
 const loginPhp = "login_do.php"
 const loginEndpoint = baseEndpoint + loginPhp
 const mainPhp = "main.php"
+const mainEndpoint = baseEndpoint + mainPhp
 
 func main() {
-	fmt.Println("hello world")
+	fmt.Println("Start manin")
+	client := NewClient("123456", "secret")
+	proxies, err := client.GetProxies()
+	fmt.Println()
+	fmt.Printf("ERROR: %v", err)
+	fmt.Println()
+	fmt.Println()
+	fmt.Printf("PROXIES: %v", proxies)
+	fmt.Println()
+	fmt.Println("End manin")
 }
 
 // ------------------------------------
@@ -31,8 +41,8 @@ type Proxy struct {
 	Port uint16
 }
 
-func (proxyAddr *Proxy) String() string {
-	return fmt.Sprintf("%s:%d", proxyAddr.IP.String(), proxyAddr.Port)
+func (proxy *Proxy) String() string {
+	return fmt.Sprintf("%s:%d", proxy.IP.String(), proxy.Port)
 }
 
 func MakeProxy(str string) (*Proxy, error) {
@@ -79,14 +89,17 @@ type simpleHTTPClient interface {
 }
 
 type Client struct {
-	UserId           string
+	UserName         string
 	Password         string
 	httpClient       simpleHTTPClient
 	initSuccessfully bool
 }
 
-func NewClient() *Client {
-	client := &Client{}
+func NewClient(username string, password string) *Client {
+	client := &Client{
+		UserName: username,
+		Password: password,
+	}
 	jar, _ := cookiejar.New(nil)
 	client.httpClient = &http.Client{
 		Jar:           jar,
@@ -105,7 +118,7 @@ func (client *Client) initHTTPClient() error {
 	}
 
 	payload := url.Values{}
-	payload.Add("username", client.UserId)
+	payload.Add("username", client.UserName)
 	payload.Add("password", client.Password)
 	payload.Add("button", "Sign+In")
 
@@ -143,7 +156,7 @@ func (client *Client) initHTTPClient() error {
 // ------------------------------------
 
 func (client *Client) getMainPhpText() (string, error) {
-	res, networkErr := client.httpClient.Get(mainPhp)
+	res, networkErr := client.httpClient.Get(mainEndpoint)
 	if networkErr != nil {
 		return "", networkErr
 	}

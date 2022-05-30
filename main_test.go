@@ -138,7 +138,7 @@ func TestInitHTTPClient(t *testing.T) {
 	mock.resp = getMockHTTPResponse("main.html", 302, headers)
 
 	client := Client{
-		UserId:           "123456",
+		UserName:         "123456",
 		Password:         "secret",
 		httpClient:       mock,
 		initSuccessfully: false,
@@ -177,7 +177,34 @@ func TestInitHTTPClient(t *testing.T) {
 //   Testing extract data
 // ------------------------------------
 
-func TestGetProxiesByElementId(t *testing.T) {
+func TestGetMainPhpText(t *testing.T) {
+	mock := &MockHTTPClient{
+		resp: getMockHTTPResponse("main.html", 200, http.Header{}),
+	}
+	client := Client{
+		httpClient:       mock,
+		initSuccessfully: true,
+	}
+
+	text, err := client.getMainPhpText()
+
+	if err != nil {
+		t.Errorf("unexpected error %v", err)
+		return
+	}
+
+	expectedText := getFileContent("main.html")
+	if text != expectedText {
+		t.Error("unexpected text")
+	}
+
+	if mock.url != "https://admin.instantproxies.com/main.php" {
+		t.Errorf("unexpected url called: %v", mock.url)
+		return
+	}
+}
+
+func TestGetTextAreaInnerText(t *testing.T) {
 	html := getFileContent("main.html")
 
 	testCases := []struct {
@@ -216,8 +243,4 @@ func TestGetProxiesByElementId(t *testing.T) {
 			return
 		}
 	}
-}
-
-func TestClient_GetProxies(t *testing.T) {
-
 }
