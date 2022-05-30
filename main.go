@@ -95,7 +95,7 @@ func MakeProxies(strings []string) ([]*Proxy, error) {
 //   API client
 // ------------------------------------
 
-type simpleHTTPClient interface {
+type SimpleHTTPClient interface {
 	Get(url string) (resp *http.Response, err error)
 	PostForm(url string, data url.Values) (resp *http.Response, err error)
 }
@@ -103,7 +103,7 @@ type simpleHTTPClient interface {
 type Client struct {
 	UserName         string
 	Password         string
-	httpClient       simpleHTTPClient
+	httpClient       SimpleHTTPClient
 	initSuccessfully bool
 }
 
@@ -250,11 +250,45 @@ func (client *Client) GetAuthorizedIPs() ([]net.IP, error) {
 //   API client set data
 // ------------------------------------
 
-/**
-func (client *Client) AddAuthorizedIP(ip net.IP) {
-
+func (client *Client) AddAuthorizedIP(ip net.IP) error {
+	return client.AddAuthorizedIPs([]net.IP{ip})
 }
 
+func (client *Client) AddAuthorizedIPs(ips []net.IP) error {
+	initError := client.initHTTPClient()
+	if initError != nil {
+		return initError
+	}
+
+	authorizedIPs, getIPErr := client.GetAuthorizedIPs()
+	if getIPErr != nil {
+		return getIPErr
+	}
+	// TODO make ip unique?
+	authorizedIPs = append(authorizedIPs, ips...)
+	var authorizedIPStrs []string
+	for _, ip := range authorizedIPs {
+		authorizedIPStrs = append(authorizedIPStrs, ip.String())
+	}
+
+	payload := url.Values{}
+	payload.Add("cmd", "Submit Update")
+	payload.Add("authips", strings.Join(authorizedIPStrs, "\n"))
+
+	response, networkErr := client.httpClient.PostForm(mainEndpoint, payload)
+	if networkErr != nil {
+		return networkErr
+	}
+
+	// todo check status & content of response
+	if response.StatusCode != 200 {
+		return fmt.Errorf("expected status 200, got %v", response.StatusCode)
+	}
+
+	return nil
+}
+
+/**
 func (client *Client) RemoveAuthorizedIP(ip net.IP) {
 
 }
