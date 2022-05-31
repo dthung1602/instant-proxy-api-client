@@ -278,6 +278,10 @@ func (client *Client) AddAuthorizedIPs(ips []net.IP) error {
 }
 
 func (client *Client) RemoveAuthorizedIP(ip net.IP) error {
+	return client.RemoveAuthorizedIPs([]net.IP{ip})
+}
+
+func (client *Client) RemoveAuthorizedIPs(ips []net.IP) error {
 	initError := client.initHTTPClient()
 	if initError != nil {
 		return initError
@@ -287,11 +291,13 @@ func (client *Client) RemoveAuthorizedIP(ip net.IP) error {
 	if getIPErr != nil {
 		return getIPErr
 	}
-	// TODO make ip unique?
-	idx := sort.Search(len(authorizedIPs), func(i int) bool {
-		return authorizedIPs[i].Equal(ip)
-	})
-	authorizedIPs = append(authorizedIPs[:idx], authorizedIPs[idx+1:]...)
+
+	for _, ip := range ips {
+		idx := sort.Search(len(authorizedIPs), func(i int) bool {
+			return authorizedIPs[i].Equal(ip)
+		})
+		authorizedIPs = append(authorizedIPs[:idx], authorizedIPs[idx+1:]...)
+	}
 	return client.SetAuthorizedIPs(authorizedIPs)
 }
 
