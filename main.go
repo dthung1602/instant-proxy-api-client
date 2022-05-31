@@ -20,10 +20,17 @@ const loginEndpoint = baseEndpoint + loginPhp
 const mainPhp = "main.php"
 const mainEndpoint = baseEndpoint + mainPhp
 const checkIPEndpoint = "https://checkip.instantproxies.com/"
+const checkProxiesEndpoint = "https://instantproxies.com/proxytester/test.json.php"
 
 func main() {
 	fmt.Println("Start manin")
 	client := NewClient("123456", "secret")
+	testProxies, _ := MakeProxies([]string{
+		"154.37.250.132:8800",
+		"154.37.251.132:8800",
+	})
+	result := client.TestProxies(testProxies)
+	fmt.Println("Proxy test result: ", result)
 	myIP, myIPErr := client.GetLocalEnvPublicIP()
 	fmt.Printf("MY IP IS %v\n", myIP)
 	fmt.Printf("ERROR MY IP %v\n", myIPErr)
@@ -339,8 +346,41 @@ func (client *Client) GetLocalEnvPublicIP() (net.IP, error) {
 	return ip, nil
 }
 
-/**
-func (client *Client) TestProxies() []bool {
-
+func (client *Client) TestOwnedProxies() ([]bool, error) {
+	proxies, err := client.GetProxies()
+	if err != nil {
+		return nil, err
+	}
+	return client.TestProxies(proxies), nil
 }
-*/
+
+func (client *Client) TestProxies(proxies []*Proxy) []bool {
+	urls := make([]string, len(proxies))
+	for i, proxy := range proxies {
+		query := url.Values{}
+		query.Add("proxy", proxy.String())
+		urls[i] = checkProxiesEndpoint + "?" + query.Encode()
+	}
+
+	// TODO use worker pool
+	result := make([]bool, len(proxies))
+	for i, checkUrl := range urls {
+		res, networkErr := client.httpClient.Get(checkUrl)
+		if networkErr != nil {
+			result[i] = false
+			continue
+		}
+		if res.StatusCode != 200 {
+			result[i] = false
+			continue
+		}
+		bodyRaw, readErr := io.ReadAll(res.Body)
+		if readErr != nil {
+			result[i] = false
+			continue
+		}
+		body := strings.Trim(string(bodyRaw), " \n\r\t")
+		result[i] = strings.HasSuffix(body, "200,PASSED")
+	}
+	return result
+}
