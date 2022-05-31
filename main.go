@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 )
 
@@ -21,83 +20,6 @@ const mainPhp = "main.php"
 const mainEndpoint = baseEndpoint + mainPhp
 const checkIPEndpoint = "https://checkip.instantproxies.com/"
 const checkProxiesEndpoint = "https://instantproxies.com/proxytester/test.json.php"
-
-func main() {
-	fmt.Println("Start manin")
-	client := NewClient("123456", "secret")
-	testProxies, _ := MakeProxies([]string{
-		"154.37.250.132:8800",
-		"154.37.251.132:8800",
-	})
-	result := client.TestProxies(testProxies)
-	fmt.Println("Proxy test result: ", result)
-	myIP, myIPErr := client.GetLocalEnvPublicIP()
-	fmt.Printf("MY IP IS %v\n", myIP)
-	fmt.Printf("ERROR MY IP %v\n", myIPErr)
-	proxies, err := client.GetProxies()
-	ips, ipErr := client.GetAuthorizedIPs()
-	fmt.Println()
-	fmt.Printf("PROXIES ERROR: %v", err)
-	fmt.Println()
-	fmt.Println()
-	fmt.Printf("PROXIES: %v", proxies)
-	fmt.Println()
-	fmt.Println()
-	fmt.Printf("IPS: %v", ips)
-	fmt.Println()
-	fmt.Println()
-	fmt.Printf("IP ERROR: %v", ipErr)
-	fmt.Println()
-	fmt.Println()
-	fmt.Println("End manin")
-}
-
-// ------------------------------------
-//   Proxy
-// ------------------------------------
-
-type Proxy struct {
-	IP   net.IP
-	Port uint16
-}
-
-func (proxy *Proxy) String() string {
-	return fmt.Sprintf("%s:%d", proxy.IP.String(), proxy.Port)
-}
-
-func MakeProxy(str string) (*Proxy, error) {
-	str = strings.Trim(str, " \n\r\t")
-	parts := strings.Split(str, ":")
-
-	if len(parts) != 2 {
-		return nil, fmt.Errorf("invalid proxy string '%s'", str)
-	}
-
-	ip := net.ParseIP(parts[0])
-	port, portErr := strconv.Atoi(parts[1])
-
-	if port < 0 || port > 65535 {
-		portErr = errors.New("port out of range")
-	}
-
-	if ip == nil || portErr != nil {
-		return nil, fmt.Errorf("invalid proxy string '%s'", str)
-	}
-
-	return &Proxy{ip, uint16(port)}, nil
-}
-
-func MakeProxies(strings []string) ([]*Proxy, error) {
-	proxies := make([]*Proxy, len(strings))
-	for i, line := range strings {
-		proxy, parseErr := MakeProxy(line)
-		if parseErr != nil {
-			return nil, parseErr
-		}
-		proxies[i] = proxy
-	}
-	return proxies, nil
-}
 
 // ------------------------------------
 //   API client
@@ -122,14 +44,12 @@ func NewClient(username string, password string) *Client {
 	}
 	jar, _ := cookiejar.New(nil)
 	client.httpClient = &http.Client{
-		Jar:           jar,
-		CheckRedirect: dontRedirect,
+		Jar: jar,
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse // no follow redirect
+		},
 	}
 	return client
-}
-
-func dontRedirect(_ *http.Request, _ []*http.Request) error {
-	return http.ErrUseLastResponse
 }
 
 func (client *Client) initHTTPClient() error {
