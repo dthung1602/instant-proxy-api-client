@@ -253,7 +253,7 @@ func (client *Client) SetAuthorizedIPs(ips []net.IP) error {
 //   API util
 // ------------------------------------
 
-func (client *Client) GetLocalEnvPublicIP() (net.IP, error) {
+func (client *Client) GetOwnedPublicIP() (net.IP, error) {
 	response, networkErr := client.httpClient.Get(checkIPEndpoint)
 	if networkErr != nil {
 		return nil, networkErr
