@@ -108,3 +108,25 @@ func (pool WorkerPool[T]) Results() []*Result[T] {
 	}
 	return nil
 }
+
+func (pool WorkerPool[T]) ResultValues() []T {
+	if pool.isDone {
+		values := make([]T, len(pool.results))
+		for i, res := range pool.results {
+			values[i] = res.Val
+		}
+		return values
+	}
+	return nil
+}
+
+func (pool WorkerPool[T]) ResultErrors() []error {
+	if pool.isDone {
+		values := make([]error, len(pool.results))
+		for i, res := range pool.results {
+			values[i] = res.Err
+		}
+		return values
+	}
+	return nil
+}

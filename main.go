@@ -281,32 +281,36 @@ func (client *Client) TestOwnedProxies() ([]bool, error) {
 }
 
 func (client *Client) TestProxies(proxies []*Proxy) []bool {
-	urls := make([]string, len(proxies))
-	for i, proxy := range proxies {
-		query := url.Values{}
-		query.Add("proxy", proxy.String())
-		urls[i] = checkProxiesEndpoint + "?" + query.Encode()
+	pool := NewWorkerPool[bool](4)
+	for _, proxy := range proxies {
+		pool.Submit(func() (bool, error) {
+			return client.testProxy(proxy)
+		})
 	}
+	pool.Close()
+	pool.Wait()
+	return pool.ResultValues()
+}
 
-	// TODO use worker pool
-	result := make([]bool, len(proxies))
-	for i, checkUrl := range urls {
-		res, networkErr := client.httpClient.Get(checkUrl)
-		if networkErr != nil {
-			result[i] = false
-			continue
-		}
-		if res.StatusCode != 200 {
-			result[i] = false
-			continue
-		}
-		bodyRaw, readErr := io.ReadAll(res.Body)
-		if readErr != nil {
-			result[i] = false
-			continue
-		}
-		body := strings.Trim(string(bodyRaw), " \n\r\t")
-		result[i] = strings.HasSuffix(body, "200,PASSED")
+func (client *Client) testProxy(proxy *Proxy) (bool, error) {
+	fmt.Printf("Testing %v\n", proxy)
+	query := url.Values{}
+	query.Add("proxy", proxy.String())
+	checkUrl := checkProxiesEndpoint + "?" + query.Encode()
+
+	res, networkErr := client.httpClient.Get(checkUrl)
+	if networkErr != nil {
+		return false, networkErr
 	}
-	return result
+	if res.StatusCode != 200 {
+		return false, fmt.Errorf("expected HTTP status 200, got %d", res.StatusCode)
+	}
+	bodyRaw, readErr := io.ReadAll(res.Body)
+	if readErr != nil {
+		return false, readErr
+	}
+	body := strings.Trim(string(bodyRaw), " \n\r\t")
+	passed := strings.HasSuffix(body, "200,PASSED")
+	fmt.Printf("Result testing %v: %v\n", proxy, passed)
+	return passed, nil
 }
