@@ -52,7 +52,7 @@ func NewClient(username string, password string) *Client {
 	return client
 }
 
-func (client *Client) initHTTPClient() error {
+func (client *Client) Authenticate() error {
 	if client.initSuccessfully {
 		return nil
 	}
@@ -130,7 +130,7 @@ func getTextAreaInnerText(html string, id string) ([]string, error) {
 }
 
 func (client *Client) GetProxies() ([]*Proxy, error) {
-	initError := client.initHTTPClient()
+	initError := client.Authenticate()
 	if initError != nil {
 		return nil, initError
 	}
@@ -149,7 +149,7 @@ func (client *Client) GetProxies() ([]*Proxy, error) {
 }
 
 func (client *Client) GetAuthorizedIPs() ([]net.IP, error) {
-	initError := client.initHTTPClient()
+	initError := client.Authenticate()
 	if initError != nil {
 		return nil, initError
 	}
@@ -183,7 +183,7 @@ func (client *Client) AddAuthorizedIP(ip net.IP) error {
 }
 
 func (client *Client) AddAuthorizedIPs(ips []net.IP) error {
-	initError := client.initHTTPClient()
+	initError := client.Authenticate()
 	if initError != nil {
 		return initError
 	}
@@ -202,7 +202,7 @@ func (client *Client) RemoveAuthorizedIP(ip net.IP) error {
 }
 
 func (client *Client) RemoveAuthorizedIPs(ips []net.IP) error {
-	initError := client.initHTTPClient()
+	initError := client.Authenticate()
 	if initError != nil {
 		return initError
 	}
@@ -222,7 +222,7 @@ func (client *Client) RemoveAuthorizedIPs(ips []net.IP) error {
 }
 
 func (client *Client) SetAuthorizedIPs(ips []net.IP) error {
-	initError := client.initHTTPClient()
+	initError := client.Authenticate()
 	if initError != nil {
 		return initError
 	}

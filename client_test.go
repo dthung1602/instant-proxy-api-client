@@ -62,7 +62,7 @@ func (mock *MockHTTPClient) Get(url string) (resp *http.Response, err error) {
 //   Testing client
 // ------------------------------------
 
-func TestInitHTTPClient(t *testing.T) {
+func TestAuthenticate(t *testing.T) {
 	mock := &MockHTTPClient{}
 	headers := http.Header{
 		"Location": []string{"main.php"},
@@ -76,7 +76,7 @@ func TestInitHTTPClient(t *testing.T) {
 		initSuccessfully: false,
 	}
 
-	err := client.initHTTPClient()
+	err := client.Authenticate()
 
 	if err != nil {
 		t.Errorf("init returns error %v", err)
