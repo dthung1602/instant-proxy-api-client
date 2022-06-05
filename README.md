@@ -11,7 +11,7 @@
 <br />
 <p align="center">
   <a href="https://github.com/dthung1602/instant-proxy-api-client">
-    <img src="https://raw.githubusercontent.com/dthung1602/instant-proxy-api-client/master/instantproxies.png" width="251">
+    <img src="https://raw.githubusercontent.com/dthung1602/instant-proxy-api-client/master/resources/instantproxies.png" width="251">
   </a>
 
 <h3 align="center">InstantProxy API Client</h3>
