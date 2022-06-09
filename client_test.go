@@ -40,24 +40,6 @@ func getMockHTTPResponse(fileName string, statusCode int, header http.Header) *h
 	return response
 }
 
-type MockHTTPClient struct {
-	url  string
-	data url.Values
-	resp *http.Response
-	err  error
-}
-
-func (mock *MockHTTPClient) PostForm(url string, data url.Values) (resp *http.Response, err error) {
-	mock.url = url
-	mock.data = data
-	return mock.resp, mock.err
-}
-
-func (mock *MockHTTPClient) Get(url string) (resp *http.Response, err error) {
-	mock.url = url
-	return mock.resp, mock.err
-}
-
 // ------------------------------------
 //   Testing client
 // ------------------------------------
@@ -67,7 +49,7 @@ func TestAuthenticate(t *testing.T) {
 	headers := http.Header{
 		"Location": []string{"main.php"},
 	}
-	mock.resp = getMockHTTPResponse("main.html", 302, headers)
+	mock.resp = getMockHTTPResponse("main.php", 302, headers)
 
 	client := Client{
 		UserName:         "123456",
@@ -111,7 +93,7 @@ func TestAuthenticate(t *testing.T) {
 
 func TestGetMainPhpText(t *testing.T) {
 	mock := &MockHTTPClient{
-		resp: getMockHTTPResponse("main.html", 200, http.Header{}),
+		resp: getMockHTTPResponse("main.php", 200, http.Header{}),
 	}
 	client := Client{
 		httpClient:       mock,
@@ -125,7 +107,7 @@ func TestGetMainPhpText(t *testing.T) {
 		return
 	}
 
-	expectedText := getFileContent("main.html")
+	expectedText := getFileContent("main.php")
 	if text != expectedText {
 		t.Error("unexpected text")
 	}
@@ -137,7 +119,7 @@ func TestGetMainPhpText(t *testing.T) {
 }
 
 func TestGetTextAreaInnerText(t *testing.T) {
-	html := getFileContent("main.html")
+	html := getFileContent("main.php")
 
 	testCases := []struct {
 		id             string

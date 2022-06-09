@@ -13,11 +13,11 @@ import (
 	"strings"
 )
 
-const baseEndpoint = "https://admin.instantproxies.com/"
+const adminEndpoint = "https://admin.instantproxies.com/"
 const loginPhp = "login_do.php"
-const loginEndpoint = baseEndpoint + loginPhp
+const loginEndpoint = adminEndpoint + loginPhp
 const mainPhp = "main.php"
-const mainEndpoint = baseEndpoint + mainPhp
+const mainEndpoint = adminEndpoint + mainPhp
 const checkIPEndpoint = "https://checkip.instantproxies.com/"
 const checkProxiesEndpoint = "https://instantproxies.com/proxytester/test.json.php"
 
@@ -25,22 +25,22 @@ const checkProxiesEndpoint = "https://instantproxies.com/proxytester/test.json.p
 //   API client
 // ------------------------------------
 
-type SimpleHTTPClient interface {
-	Get(url string) (resp *http.Response, err error)
-	PostForm(url string, data url.Values) (resp *http.Response, err error)
-}
-
 type Client struct {
 	UserName         string
 	Password         string
+	Endpoint         string
 	httpClient       SimpleHTTPClient
 	initSuccessfully bool
 }
 
-func NewClient(username string, password string) *Client {
+func NewClient(username string, password string, endpoint string) *Client {
+	if endpoint == "" {
+		endpoint = adminEndpoint
+	}
 	client := &Client{
 		UserName: username,
 		Password: password,
+		Endpoint: endpoint,
 	}
 	jar, _ := cookiejar.New(nil)
 	client.httpClient = &http.Client{
@@ -63,6 +63,7 @@ func (client *Client) Authenticate() error {
 	payload.Add("button", "Sign+In")
 
 	res, networkErr := client.httpClient.PostForm(loginEndpoint, payload)
+	defer res.Body.Close()
 	if networkErr != nil {
 		return networkErr
 	}
@@ -97,6 +98,7 @@ func (client *Client) Authenticate() error {
 
 func (client *Client) getMainPhpText() (string, error) {
 	res, networkErr := client.httpClient.Get(mainEndpoint)
+	defer res.Body.Close()
 	if networkErr != nil {
 		return "", networkErr
 	}
@@ -255,6 +257,7 @@ func (client *Client) SetAuthorizedIPs(ips []net.IP) error {
 
 func (client *Client) GetOwnedPublicIP() (net.IP, error) {
 	response, networkErr := client.httpClient.Get(checkIPEndpoint)
+	defer response.Body.Close()
 	if networkErr != nil {
 		return nil, networkErr
 	}
@@ -299,12 +302,14 @@ func (client *Client) testProxy(proxy *Proxy) (bool, error) {
 	checkUrl := checkProxiesEndpoint + "?" + query.Encode()
 
 	res, networkErr := client.httpClient.Get(checkUrl)
+	defer res.Body.Close()
 	if networkErr != nil {
 		return false, networkErr
 	}
 	if res.StatusCode != 200 {
 		return false, fmt.Errorf("expected HTTP status 200, got %d", res.StatusCode)
 	}
+
 	bodyRaw, readErr := io.ReadAll(res.Body)
 	if readErr != nil {
 		return false, readErr
