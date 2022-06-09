@@ -3,4 +3,4 @@ test:
 	go test ./...
 
 server:
-	go run ./fakeserver/server.go
+	cd fakeserver && go run server.go

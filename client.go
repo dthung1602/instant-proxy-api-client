@@ -13,11 +13,9 @@ import (
 	"strings"
 )
 
-const adminEndpoint = "https://admin.instantproxies.com/"
+const adminEndpoint = "https://admin.asdfasinstantproxies.com/"
 const loginPhp = "login_do.php"
-const loginEndpoint = adminEndpoint + loginPhp
 const mainPhp = "main.php"
-const mainEndpoint = adminEndpoint + mainPhp
 const checkIPEndpoint = "https://checkip.instantproxies.com/"
 const checkProxiesEndpoint = "https://instantproxies.com/proxytester/test.json.php"
 
@@ -60,9 +58,9 @@ func (client *Client) Authenticate() error {
 	payload := url.Values{}
 	payload.Add("username", client.UserName)
 	payload.Add("password", client.Password)
-	payload.Add("button", "Sign+In")
+	payload.Add("button", "Sign In")
 
-	res, networkErr := client.httpClient.PostForm(loginEndpoint, payload)
+	res, networkErr := client.httpClient.PostForm(client.loginEndpoint(), payload)
 	defer res.Body.Close()
 	if networkErr != nil {
 		return networkErr
@@ -92,12 +90,20 @@ func (client *Client) Authenticate() error {
 	return nil
 }
 
+func (client *Client) loginEndpoint() string {
+	return client.Endpoint + loginPhp
+}
+
+func (client *Client) mainEndpoint() string {
+	return client.Endpoint + mainPhp
+}
+
 // ------------------------------------
 //   API client get data
 // ------------------------------------
 
 func (client *Client) getMainPhpText() (string, error) {
-	res, networkErr := client.httpClient.Get(mainEndpoint)
+	res, networkErr := client.httpClient.Get(client.mainEndpoint())
 	defer res.Body.Close()
 	if networkErr != nil {
 		return "", networkErr
@@ -238,7 +244,7 @@ func (client *Client) SetAuthorizedIPs(ips []net.IP) error {
 	payload.Add("cmd", "Submit Update")
 	payload.Add("authips", strings.Join(authorizedIPStrs, "\n"))
 
-	response, networkErr := client.httpClient.PostForm(mainEndpoint, payload)
+	response, networkErr := client.httpClient.PostForm(client.mainEndpoint(), payload)
 	if networkErr != nil {
 		return networkErr
 	}
