@@ -54,6 +54,7 @@ func TestAuthenticate(t *testing.T) {
 	client := Client{
 		UserName:         "123456",
 		Password:         "secret",
+		Endpoint:         adminEndpoint,
 		httpClient:       mock,
 		initSuccessfully: false,
 	}
@@ -73,7 +74,7 @@ func TestAuthenticate(t *testing.T) {
 	expectedFormData := url.Values{
 		"username": []string{"123456"},
 		"password": []string{"secret"},
-		"button":   []string{"Sign+In"},
+		"button":   []string{"Sign In"},
 	}
 	if !reflect.DeepEqual(expectedFormData, mock.data) {
 		t.Error("http client doesn't received expected form data")
@@ -96,6 +97,7 @@ func TestGetMainPhpText(t *testing.T) {
 		resp: getMockHTTPResponse("main.php", 200, http.Header{}),
 	}
 	client := Client{
+		Endpoint:         adminEndpoint,
 		httpClient:       mock,
 		initSuccessfully: true,
 	}

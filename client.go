@@ -9,11 +9,10 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"regexp"
-	"sort"
 	"strings"
 )
 
-const adminEndpoint = "https://admin.asdfasinstantproxies.com/"
+const adminEndpoint = "https://admin.instantproxies.com/"
 const loginPhp = "login_do.php"
 const mainPhp = "main.php"
 const checkIPEndpoint = "https://checkip.instantproxies.com/"
@@ -221,10 +220,16 @@ func (client *Client) RemoveAuthorizedIPs(ips []net.IP) error {
 	}
 
 	for _, ip := range ips {
-		idx := sort.Search(len(authorizedIPs), func(i int) bool {
-			return authorizedIPs[i].Equal(ip)
-		})
-		authorizedIPs = append(authorizedIPs[:idx], authorizedIPs[idx+1:]...)
+		idx := -1
+		for i, aip := range authorizedIPs {
+			if aip.Equal(ip) {
+				idx = i
+				break
+			}
+		}
+		if idx != -1 {
+			authorizedIPs = append(authorizedIPs[:idx], authorizedIPs[idx+1:]...)
+		}
 	}
 	return client.SetAuthorizedIPs(authorizedIPs)
 }
