@@ -34,6 +34,13 @@ func NewClient(username string, password string, endpoint string) *Client {
 	if endpoint == "" {
 		endpoint = adminEndpoint
 	}
+	if !strings.HasSuffix(endpoint, "/") {
+		endpoint += "/"
+	}
+	_, err := url.Parse(endpoint)
+	if err != nil {
+		return nil
+	}
 	client := &Client{
 		UserName: username,
 		Password: password,
