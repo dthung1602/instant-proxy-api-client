@@ -2,5 +2,5 @@
 test:
 	go test ./...
 
-server:
-	cd fakeserver && go run server.go
+fake-server:
+	cd resources && go run fake_instant_proxy_server_up.go
